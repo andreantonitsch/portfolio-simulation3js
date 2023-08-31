@@ -29,7 +29,7 @@ void main() {
     
     float lifetime = pos.a;
     if(lifetime < 0.0){
-        gl_FragColor =  vec4(normalize(random3(coord * uTime)) - vec3(0.5, 0.5, 0.5), 10.0  * random(coord * uTime));
+        gl_FragColor =  vec4(normalize(random3(coord * uTime)) - vec3(0.5, 0.5, 0.5), 4.0  * random(coord * uTime));
     } else {
         vec3 speed = texture2D(speedMap, coord).xyz / 50.0;
 
@@ -40,6 +40,10 @@ void main() {
 
 }
 `)
+
+export const position_normal_vertex = `
+
+`
 
 
 export const speed_vertex = resolveLygia(`

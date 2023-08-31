@@ -5,7 +5,7 @@ import * as dat from 'lil-gui'
 import { Mesh, BoxGeometry, PlaneGeometry, ShadowMaterial, MeshStandardMaterial } from 'three'
 
 import {position_vertex, position_frag, speed_vertex, speed_frag} from './shaders/simulation_shaders.js'
-import {viz_common_replace, viz_vertex_replace} from './shaders/visualization_shaders.js'
+import {viz_common_replace, viz_vertex_replace, viz_normal_replace} from './shaders/visualization_shaders.js'
 import { BufferAttribute } from 'three'
 import { MeshNormalMaterial } from 'three'
 import Stats from 'stats.js'
@@ -86,8 +86,8 @@ const sqGeom = new THREE.PlaneGeometry(2, 2)
  * Properties
  */
 const props = {
-    quantity: 256 * 256,
-    simulation_resolution : [256, 256]
+    quantity: 64 * 64,
+    simulation_resolution : [64, 64]
 }
 
 //boxes setup
@@ -231,11 +231,14 @@ bufferGeometry.setAttribute('instanceID', new BufferAttribute(instanceIDs, 1))
 
 
 let viz_uniforms = null
+let shadow_uniforms = null
 
+// const make_before_compile = (uniforms) =>{
 const before_compile = (shader) => {
 
     shader.vertexShader = shader.vertexShader.replace('#include <common>', viz_common_replace)
     shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', viz_vertex_replace)
+    shader.vertexShader = shader.vertexShader.replace('#include <defaultnormal_vertex>', viz_normal_replace)
 
     shader.vertexShader = resolveLygia(shader.vertexShader)
 
@@ -246,11 +249,18 @@ const before_compile = (shader) => {
 
     viz_uniforms = shader.uniforms
 }
+//     return before_compile
+// }
 
-const viz_material = new MeshStandardMaterial()
+const viz_material = new MeshStandardMaterial( { color : new THREE.Color('indianred')})
+// viz_material.onBeforeCompile = make_before_compile(viz_uniforms)
 viz_material.onBeforeCompile = before_compile
 
-const sim_object = new Mesh(bufferGeometry, viz_material) 
+//const shadowMaterial = new THREE.MeshDepthMaterial()
+// shadowMaterial.onBeforeCompile = make_before_compile(shadow_uniforms)
+
+const sim_object = new Mesh(bufferGeometry, viz_material)
+//sim_object.customDepthMaterial = shadowMaterial
 scene.add(sim_object)
 
 
@@ -265,7 +275,10 @@ directionalLight.shadow.mapSize.set(1024, 1024)
 directionalLight.shadow.camera.far = 15
 directionalLight.shadow.normalBias = 0.05
 directionalLight.position.set(0.25, 2, - 2.25)
+
+const ambientLight = new THREE.AmbientLight('#ffffff', 1)
 scene.add(directionalLight)
+scene.add(ambientLight)
 
 
 // Controls

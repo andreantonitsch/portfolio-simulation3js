@@ -9,6 +9,7 @@ uniform float uTime;
 
 attribute uint vertexID;
 attribute uint instanceID;
+attribute uvec2 neighbours;
 
 uniform vec2 uResolution;
 uniform sampler2D positionMap;
@@ -61,16 +62,37 @@ uint umod(uint x, uint y){
 
 export const viz_vertex_replace = `
 
-uint vLocalID = umod(vertexID, 18u); //id of this vertex in this instance [0;17]
-uint vertexLabel = vertexLabels[vLocalID]; //type of vertex [0-4]
+transformed += v0;
+
+`
+
+
+export const viz_normal_replace = `
 
 vec2 instance_uv = vec2(float(instanceID / uint(uResolution.y)), float(umod(instanceID, uint(uResolution.y))) ) / uResolution;
-
 vec4 pos = texture2D(positionMap, instance_uv);
 vec3 direction =  normalize(texture2D(speedMap, instance_uv).xyz);
 vec3 transformed = pos.xyz;
 
-transformed += computeVertexOffset(vertexLabel, direction, pos.a / 10.0);
+uint vLocalID = umod(vertexID, 18u); //id of this vertex in this instance [0;17]
+uint vertexLabel = vertexLabels[vLocalID]; //type of vertex [0-4]
+uint triIndex = vLocalID / 3u; // triangleIndex
 
+uint triStartIndex = (triIndex * 3u);
+uint v1LocalID = triStartIndex + umod(vLocalID + 1u, 3u);
+uint v2LocalID = triStartIndex + umod(vLocalID + 2u, 3u);
 
+uint v1Label = vertexLabels[v1LocalID];
+uint v2Label = vertexLabels[v2LocalID];
+
+float scale = pos.a / 4.0;
+
+vec3 v0 = computeVertexOffset(vertexLabel, direction, scale);
+vec3 v1 = computeVertexOffset(v1Label, direction, scale);
+vec3 v2 = computeVertexOffset(v2Label, direction, scale);
+
+objectNormal = cross(v1-v0, v2-v0);
+
+#include <defaultnormal_vertex>
 `
+
