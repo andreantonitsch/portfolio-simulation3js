@@ -22,6 +22,7 @@ document.body.appendChild(stats.dom)
 
 // Canvas
 const canvas = document.querySelector('canvas.webgl')
+const clock = new THREE.Clock()
 
 /**
  * Sizes
@@ -85,8 +86,8 @@ const sqGeom = new THREE.PlaneGeometry(2, 2)
  * Properties
  */
 const props = {
-    quantity: 1000,
-    simulation_resolution : [64, 64]
+    quantity: 256 * 256,
+    simulation_resolution : [256, 256]
 }
 
 //boxes setup
@@ -150,6 +151,7 @@ const spdMaterial = new THREE.ShaderMaterial(
             speed: {value : 1.0},
             positionMap: {value : pBuffer0.texture},
             uTime : {value : 0},
+            uDeltaTime: {value : 0.0}
         },
         vertexShader : speed_vertex,
         fragmentShader : speed_frag
@@ -158,28 +160,31 @@ const spdMaterial = new THREE.ShaderMaterial(
 
 const posQuad = new Mesh(sqGeom, posMaterial)
 const spdQuad = new Mesh(sqGeom, spdMaterial)
-
+let lastTime = clock.getElapsedTime()
 const simulationStep = () => {
 
-    const elapsedTime = clock.getElapsedTime()
+    const current = clock.getElapsedTime()
+    const delta = current - lastTime
+    lastTime = current
 
-    posMaterial.uniforms.uDeltaTime.value = clock.getDelta()
-    posMaterial.uniforms.uTime.value = elapsedTime
+    posMaterial.uniforms.uDeltaTime.value = delta
+    posMaterial.uniforms.uTime.value = current
     posMaterial.uniforms.positionMap.value = pBuffer0.texture
     posMaterial.uniforms.speedMap.value = sBuffer.texture
 
     spdMaterial.uniforms.positionMap.value = pBuffer0.texture
-    spdMaterial.uniforms.uTime.value = elapsedTime
+    spdMaterial.uniforms.uTime.value = current
 
     posMaterial.uniformsNeedUpdate = true
     spdMaterial.uniformsNeedUpdate = true
 
     renderer.setRenderTarget(pBuffer1)
     renderer.render(posQuad, simCamera1)
-    renderer.setRenderTarget(sBuffer)
 
+    renderer.setRenderTarget(sBuffer)
     renderer.render(spdQuad, simCamera2)
     renderer.setRenderTarget(null)
+    
 
     //swap double buffer
     const b = pBuffer0
@@ -195,8 +200,9 @@ const simulationStep = () => {
 const verticeCount = props.quantity * 18; //18 vertices per
 const verts = new Float32Array(verticeCount * 3)
 const vertexIDs  = new Uint32Array(verticeCount)
-
+const instanceIDs = new Uint32Array(verticeCount)
 // sets verts
+let instanceID = 0
 for(let i = 0; i < verticeCount; i+=0){ //for every vertice
     const r = (Math.random() -0.5) * 2
     const r2 = (Math.random()  -0.5) * 2
@@ -205,8 +211,12 @@ for(let i = 0; i < verticeCount; i+=0){ //for every vertice
         verts[i ] = r
         verts[i +1] = r2
         verts[i +2] = r3
+        instanceIDs[i ] = instanceID
+        instanceIDs[i + 1] = instanceID
+        instanceIDs[i + 2] = instanceID
         i+=3
     }
+    instanceID += 1
 }
 
 //sets ids
@@ -217,6 +227,7 @@ for(let i = 0; i < verticeCount; i++){
 const bufferGeometry = new THREE.BufferGeometry()
 bufferGeometry.setAttribute('position', new BufferAttribute(verts, 3 ))
 bufferGeometry.setAttribute('vertexID', new BufferAttribute(vertexIDs, 1))
+bufferGeometry.setAttribute('instanceID', new BufferAttribute(instanceIDs, 1))
 
 
 let viz_uniforms = null
@@ -265,7 +276,6 @@ controls.enableDamping = true
 /**
  * Animate
  */
-const clock = new THREE.Clock()
 
 const tick = () => {
     const elapsedTime = clock.getElapsedTime()
@@ -275,8 +285,8 @@ const tick = () => {
 
     stats.begin();
 
-    renderer.render(scene, camera)
     simulationStep()
+    renderer.render(scene, camera)
 
     stats.end();
 
