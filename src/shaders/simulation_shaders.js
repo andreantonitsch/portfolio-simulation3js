@@ -21,7 +21,13 @@ uniform sampler2D speedMap;
 uniform float uDeltaTime;
 uniform float uTime;
 uniform vec2 uResolution;
+uniform float maxLifetime;
+
+uniform vec3 mousePosition;
+
+
 varying vec2 coord;
+
 
 void main() {
 
@@ -29,7 +35,9 @@ void main() {
     
     float lifetime = pos.a;
     if(lifetime < 0.0){
-        gl_FragColor =  vec4(normalize(random3(coord * uTime)) - vec3(0.5, 0.5, 0.5), 4.0  * random(coord * uTime));
+        // gl_FragColor =  vec4(normalize(random3(coord * uTime)) - vec3(0.5, 0.5, 0.5), maxLifetime * 0.75 * random(coord * uTime) + maxLifetime * 0.25);
+        vec3 new_position = (normalize(random3(coord * uTime)) - vec3(0.5, 0.5, 0.5)) * 0.2;
+        gl_FragColor =  vec4( new_position + mousePosition, maxLifetime * 0.75 * random(coord * uTime) + maxLifetime * 0.25);
     } else {
         vec3 speed = texture2D(speedMap, coord).xyz / 50.0;
 
@@ -40,11 +48,6 @@ void main() {
 
 }
 `)
-
-export const position_normal_vertex = `
-
-`
-
 
 export const speed_vertex = resolveLygia(`
 varying vec2 coord;

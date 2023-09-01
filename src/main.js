@@ -5,7 +5,7 @@ import * as dat from 'lil-gui'
 import { Mesh, BoxGeometry, PlaneGeometry, ShadowMaterial, MeshStandardMaterial } from 'three'
 
 import {position_vertex, position_frag, speed_vertex, speed_frag} from './shaders/simulation_shaders.js'
-import {viz_common_replace, viz_vertex_replace, viz_normal_replace} from './shaders/visualization_shaders.js'
+import {viz_common_replace, viz_vertex_replace, viz_normal_replace, viz_depth_replace} from './shaders/visualization_shaders.js'
 import { BufferAttribute } from 'three'
 import { MeshNormalMaterial } from 'three'
 import Stats from 'stats.js'
@@ -13,6 +13,20 @@ import Stats from 'stats.js'
 const stats = new Stats()
 stats.showPanel(0) // 0: fps, 1: ms, 2: mb, 3+: custom
 document.body.appendChild(stats.dom)
+
+
+/**
+ * Mouse
+ */
+const mouse = new THREE.Vector2()
+
+window.addEventListener('mousemove', (event) =>
+{
+    mouse.x = event.clientX / sizes.width * 2 - 1
+    mouse.y = - (event.clientY / sizes.height) * 2 + 1
+
+})
+
 
 /**
  * Base
@@ -87,12 +101,13 @@ const sqGeom = new THREE.PlaneGeometry(2, 2)
  */
 const props = {
     quantity: 64 * 64,
-    simulation_resolution : [64, 64]
+    simulation_resolution : [64, 64],
+    maxLifetime : 7.0
 }
 
 //boxes setup
 const cubeGeom = new BoxGeometry(0.5, 0.5, 0.5)
-const redMaterial = new MeshStandardMaterial({ color: new THREE.Color("indianred") })
+const redMaterial = new MeshStandardMaterial({ color: new THREE.Color("rgba(191, 91, 91, 1)") })
 
 const box1 = new Mesh(cubeGeom, redMaterial)
 box1.position.set(2.5, 0, 1)
@@ -135,7 +150,9 @@ const posMaterial = new THREE.ShaderMaterial(
             uDeltaTime: {value : 0.0},
             uTime : {value : 0},
             positionMap: {value : pBuffer0.texture},
-            speedMap: {value : sBuffer.texture}
+            speedMap: {value : sBuffer.texture},
+            maxLifetime : {value : props.maxLifetime},
+            mousePosition : { value : new THREE.Vector3()}
         },
         vertexShader : position_vertex,
         fragmentShader : position_frag
@@ -230,40 +247,73 @@ bufferGeometry.setAttribute('vertexID', new BufferAttribute(vertexIDs, 1))
 bufferGeometry.setAttribute('instanceID', new BufferAttribute(instanceIDs, 1))
 
 
-let viz_uniforms = null
-let shadow_uniforms = null
+let viz_uniforms = {}
+let shadow_uniforms = {}
 
-// const make_before_compile = (uniforms) =>{
-const before_compile = (shader) => {
+const make_before_compile = (uniforms, depth=false) =>{
+    return (shader) => {
 
-    shader.vertexShader = shader.vertexShader.replace('#include <common>', viz_common_replace)
-    shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', viz_vertex_replace)
-    shader.vertexShader = shader.vertexShader.replace('#include <defaultnormal_vertex>', viz_normal_replace)
+        shader.vertexShader = shader.vertexShader.replace('#include <common>', viz_common_replace)
+        if(depth){
+            shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', viz_depth_replace)
+        } else{
+            shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', viz_vertex_replace)
+            shader.vertexShader = shader.vertexShader.replace('#include <defaultnormal_vertex>', viz_normal_replace)
+        }
 
-    shader.vertexShader = resolveLygia(shader.vertexShader)
+        shader.vertexShader = resolveLygia(shader.vertexShader)
 
-    shader.uniforms.positionMap  = {value : null}
-    shader.uniforms.speedMap= {value : null}
-    shader.uniforms.uResolution = {value : props.simulation_resolution}
-    shader.uniforms.uTime = { value: 0.0 }
-
-    viz_uniforms = shader.uniforms
+        shader.uniforms.positionMap  = {value : null}
+        shader.uniforms.speedMap= {value : null}
+        shader.uniforms.uResolution = {value : props.simulation_resolution}
+        shader.uniforms.uTime = { value: 0.0 },
+        shader.uniforms.maxLifetime = {value : props.maxLifetime}
+        uniforms.data = shader.uniforms
+    }
 }
-//     return before_compile
-// }
 
-const viz_material = new MeshStandardMaterial( { color : new THREE.Color('indianred')})
-// viz_material.onBeforeCompile = make_before_compile(viz_uniforms)
-viz_material.onBeforeCompile = before_compile
+const viz_material = new MeshStandardMaterial( { color : new THREE.Color("rgba(191, 91, 91, 1)")})
+viz_material.onBeforeCompile = make_before_compile(viz_uniforms)
+//console.log(viz_material.onBeforeCompile)
 
-//const shadowMaterial = new THREE.MeshDepthMaterial()
-// shadowMaterial.onBeforeCompile = make_before_compile(shadow_uniforms)
+// const shadowMaterial = new THREE.MeshDepthMaterial()
+// shadowMaterial.onBeforeCompile = make_before_compile(shadow_uniforms, true)
 
 const sim_object = new Mesh(bufferGeometry, viz_material)
-//sim_object.customDepthMaterial = shadowMaterial
+
+// sim_object.customDepthMaterial = shadowMaterial
+// sim_object.castShadow = true
+
 scene.add(sim_object)
+sim_object.position.set(0.0, 0.5, 0.0)
 
 
+/**
+ * Mouse Raycasting
+ */
+
+const raycast_floor = new Mesh(new PlaneGeometry(20, 20, 1, 1), new THREE.MeshBasicMaterial())
+raycast_floor.visible = false
+raycast_floor.position.y = -0.5
+raycast_floor.rotateX(- Math.PI / 2)
+scene.add(raycast_floor)
+const raycaster = new THREE.Raycaster()
+
+let cast = true;
+
+const cast_mouse = ( ) =>{
+    if(cast){
+        raycaster.setFromCamera(mouse, camera)
+        const intersection = raycaster.intersectObject(raycast_floor)
+    
+        if(intersection.length > 0 ){
+            posMaterial.uniforms.mousePosition.value.copy(intersection[0].point)
+            posMaterial.uniforms.mousePosition.value.y =  -1
+        }
+    }
+    cast = !cast
+
+}
 
 
 /**
@@ -298,16 +348,23 @@ const tick = () => {
 
     stats.begin();
 
+    cast_mouse()
+
     simulationStep()
-    renderer.render(scene, camera)
-
-    stats.end();
-
-    if(viz_uniforms){
-        viz_uniforms.uTime.value = elapsedTime
-        viz_uniforms.positionMap.value = pBuffer0.texture
-        viz_uniforms.speedMap.value = sBuffer.texture
+    
+    
+    if(viz_uniforms.data){
+        viz_uniforms.data.uTime.value = elapsedTime
+        viz_uniforms.data.positionMap.value = pBuffer0.texture
+        viz_uniforms.data.speedMap.value = sBuffer.texture
+        
+        // shadow_uniforms.data.uTime.value = elapsedTime
+        // shadow_uniforms.data.positionMap.value = pBuffer0.texture
+        // shadow_uniforms.data.speedMap.value = sBuffer.texture
     }
+    
+    renderer.render(scene, camera)
+    stats.end();
 
     // Render
 
