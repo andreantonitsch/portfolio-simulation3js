@@ -14,13 +14,23 @@ import Stats from 'stats.js'
 /**
  * Properties
  */
+const q = 128
 const props = {
-    quantity: 64 * 64,
-    simulation_resolution : [64, 64],
+    quantity: q * q,
+    simulation_resolution : [q, q],
+    debug : window.location.hash === '#debug',
+    dummyprops : {objColor : new THREE.Color("rgba(191, 91, 91, 1)"),
+                  backgroundColor : new THREE.Color("rgba(243, 224, 80,1)")},
+
     maxLifetime : 3.0,
     particleSpeed : 1.0,
-    debug : window.location.hash === '#debug',
-    dummyprops : {}
+    pLength : {value: 0.15},
+    pWidth : { value : 0.02 },
+    pHeight : {value : 0.03},
+    speedScale : { value : 0.02},
+    lifetimeVariation : { value : 0.1},
+    particleSpawnJitter : {value : 0.2},
+    minimumParticleSize : {value : 0.05}
 }
 
 let gui;
@@ -153,7 +163,11 @@ const posMaterial = new THREE.ShaderMaterial(
             positionMap: {value : pBuffer0.texture},
             speedMap: {value : sBuffer.texture},
             maxLifetime : {value : props.maxLifetime},
-            mousePosition : { value : new THREE.Vector3()}
+            mousePosition : { value : new THREE.Vector3()},
+            uSpeedScale : props.speedScale,
+            uLifetimeVariation : props.lifetimeVariation,
+            uSpawnJitter : props.particleSpawnJitter
+        
         },
         vertexShader : position_vertex,
         fragmentShader : position_frag
@@ -269,6 +283,10 @@ const make_before_compile = (uniforms, depth=false) =>{
         shader.uniforms.uResolution = {value : props.simulation_resolution}
         shader.uniforms.uTime = { value: 0.0 },
         shader.uniforms.maxLifetime = {value : props.maxLifetime}
+        shader.uniforms.pHeight = props.pHeight
+        shader.uniforms.pWidth = props.pWidth
+        shader.uniforms.pLength = props.pLength
+        shader.uniforms.uMinimumSize = props.minimumParticleSize
         uniforms.data = shader.uniforms
     }
 }
@@ -328,7 +346,7 @@ directionalLight.shadow.camera.far = 15
 directionalLight.shadow.normalBias = 0.05
 directionalLight.position.set(0.25, 2, - 2.25)
 
-const ambientLight = new THREE.AmbientLight('#ffffff', 1)
+const ambientLight = new THREE.AmbientLight('#ffffff', 0.1)
 scene.add(directionalLight)
 scene.add(ambientLight)
 
@@ -343,17 +361,37 @@ controls.enableDamping = true
  * UI Tweaks
  */
 if(props.debug){
+    const generalGUI = gui.addFolder("General settings")
+    generalGUI.addColor(props.dummyprops, "backgroundColor").onChange((v)=>{
+    document.body.style.backgroundColor = "#" + v.getHexString();
+    })
+
     const objsGUI = gui.addFolder("Object Parameters")
-    props.dummyprops.objColor = new THREE.Color("rgba(191, 91, 91, 1)")
     objsGUI.addColor(props.dummyprops, "objColor").onChange((v) =>{
         redMaterial.color.set(v)
         viz_material.color.set(v)
     }).name("object color")
 
     const particlesGUI = gui.addFolder("Particle Parameters")
-    particlesGUI.add(posMaterial.uniforms.maxLifetime,"value", 0.1, 20, 0.01).name("particle life time").onChange((v) =>{
-        
+    particlesGUI.add(posMaterial.uniforms.maxLifetime,"value", 0.1, 20, 0.01).name("max life time").onChange((v) =>{
+        viz_uniforms.data.maxLifetime.value = v;
     })
+
+    particlesGUI.add(props.speedScale, 'value', 0.001, 0.1, 0.001).name("time scale")
+    particlesGUI.add(props.lifetimeVariation, 'value', 0.00, 1.0, 0.01).name("% lifetime variation ")
+    particlesGUI.add(props.particleSpawnJitter, 'value', 0.00, 1.0, 0.01).name("spawn jitter")
+
+    particlesGUI.add(props.minimumParticleSize, 'value', 0.0, 1.0, 0.01).name("min p size")
+
+    const particleDimensions = particlesGUI.addFolder("particle dimensions")
+    particleDimensions.add(props.pWidth, 'value', 0.01, 0.3, 0.01 ).name('particle max width')
+    particleDimensions.add(props.pHeight, 'value', 0.01, 0.3, 0.01 ).name('particle max height')
+    particleDimensions.add(props.pLength, 'value', 0.01, 0.3, 0.01 ).name('particle max length')
+
+    const lightsGUI = gui.addFolder("Lighting settings")
+    lightsGUI.add(directionalLight, 'intensity', 0, 10, 0.01).name("directional light intensity")
+    lightsGUI.add(ambientLight, 'intensity', 0, 10, 0.01).name("ambient light intensity")
+
 }
 
 

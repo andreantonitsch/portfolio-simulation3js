@@ -17,12 +17,6 @@ uniform sampler2D positionMap;
 uniform sampler2D speedMap;
 
 uniform float maxLifetime; 
-uniform float pLength;
-uniform float pWidth;
-uniform float pHeight;
-
-uniform float uMinimumSize;
-
 
 uint vertexLabels[18] = uint[18](0u, 2u, 1u,  //tri 0  -
                                  0u, 3u, 2u,  //tri 1    > front pyramid 
@@ -32,31 +26,34 @@ uint vertexLabels[18] = uint[18](0u, 2u, 1u,  //tri 0  -
                                  4u, 2u ,3u,  //tri 4    > back pyramid
                                  4u, 3u, 1u);  //tri 5 -  
 
+const float l1 = 0.15;
+const float l2 = 0.08;
+const float l3 = 0.08; // l2 * sin 60
 
 vec3 computeVertexOffset(uint vertexLabel, vec3 direction, float scale){
     vec3 offset = vec3(0.0, 0.0, 0.0);
 
     if(vertexLabel == 0u){
-        offset += direction * pLength * scale;
+        offset += direction * l1 * scale;
 
     }else if( vertexLabel ==  4u){
-        offset -= direction * pWidth * scale;
+        offset -= direction * l2 * scale;
 
     } else if (vertexLabel == 1u){
             vec3 right = normalize(cross(direction, vec3(0.0, 1.0, 0.0)));
             
             vec3 up = normalize(cross(direction, right));
-            offset += right * pWidth * scale;
+            offset += right * l2 * scale;
 
     } else if (vertexLabel == 2u){                
         vec3 right = cross(direction, vec3(0.0, 1.0, 0.0));
         vec3 up = normalize(cross(direction, right));
-        offset += up * pHeight * scale;
+        offset += up * l3 * scale;
 
     } else if (vertexLabel == 3u){
         vec3 right = normalize(cross(direction, vec3(0.0, 1.0, 0.0)));
         vec3 up = normalize(cross(direction, right));
-        offset -= right * pWidth * scale;
+        offset -= right * l2 * scale;
     }
     return offset;
 }
@@ -94,7 +91,8 @@ uint v2Label = vertexLabels[v2LocalID];
 float t = (pos.a / maxLifetime );
 float scale = t; //[0;1)
 scale = 1.0 -  (abs(scale - 0.5) * 2.0);
-scale = max(exponentialIn(scale), uMinimumSize);
+//scale = mix(smoothstep(0.0, 0.3, t), 1.0 - smoothstep(0.7, 0.8, t) , step( 0.3, t));
+scale = exponentialIn(scale);
 
 vec3 v0 = computeVertexOffset(vertexLabel, direction, scale);
 vec3 v1 = computeVertexOffset(v1Label, direction, scale);
