@@ -10,6 +10,23 @@ import { BufferAttribute } from 'three'
 import { MeshNormalMaterial } from 'three'
 import Stats from 'stats.js'
 
+
+/**
+ * Properties
+ */
+const props = {
+    quantity: 64 * 64,
+    simulation_resolution : [64, 64],
+    maxLifetime : 3.0,
+    particleSpeed : 1.0,
+    debug : window.location.hash === '#debug',
+    dummyprops : {}
+}
+
+let gui;
+if(props.debug)
+    gui = new dat.GUI()
+
 const stats = new Stats()
 stats.showPanel(0) // 0: fps, 1: ms, 2: mb, 3+: custom
 document.body.appendChild(stats.dom)
@@ -85,25 +102,9 @@ camera.position.set(4, 1, - 4)
 scene.add(camera)
 
 const simCamera1 = new THREE.OrthographicCamera(-1, 1, 1, -1, 1 / Math.pow(2, 53), 1)
-// const simCamera1 = new THREE.PerspectiveCamera(27, sizes.width / sizes.height, 0.1, 100)
-// simCamera1.position.set(1, 0, 0)
-// simCamera1.lookAt(0, 0, 0)
-
-const simCamera2 = new THREE.OrthographicCamera(-1, 1, 1, -1, 1 / Math.pow(2, 53), 1)
-// const simCamera2 = new THREE.PerspectiveCamera(27, sizes.width / sizes.height, 0.1, 100)
-// simCamera2.position.set(1, 0, 0)
-// simCamera2.lookAt(0, 0, 0)
 
 const sqGeom = new THREE.PlaneGeometry(2, 2)
 
-/**
- * Properties
- */
-const props = {
-    quantity: 64 * 64,
-    simulation_resolution : [64, 64],
-    maxLifetime : 7.0
-}
 
 //boxes setup
 const cubeGeom = new BoxGeometry(0.5, 0.5, 0.5)
@@ -199,7 +200,7 @@ const simulationStep = () => {
     renderer.render(posQuad, simCamera1)
 
     renderer.setRenderTarget(sBuffer)
-    renderer.render(spdQuad, simCamera2)
+    renderer.render(spdQuad, simCamera1)
     renderer.setRenderTarget(null)
     
 
@@ -288,6 +289,7 @@ scene.add(sim_object)
 sim_object.position.set(0.0, 0.5, 0.0)
 
 
+
 /**
  * Mouse Raycasting
  */
@@ -334,6 +336,28 @@ scene.add(ambientLight)
 // Controls
 const controls = new OrbitControls(camera, canvas)
 controls.enableDamping = true
+
+
+
+/**
+ * UI Tweaks
+ */
+if(props.debug){
+    const objsGUI = gui.addFolder("Object Parameters")
+    props.dummyprops.objColor = new THREE.Color("rgba(191, 91, 91, 1)")
+    objsGUI.addColor(props.dummyprops, "objColor").onChange((v) =>{
+        redMaterial.color.set(v)
+        viz_material.color.set(v)
+    }).name("object color")
+
+    const particlesGUI = gui.addFolder("Particle Parameters")
+    particlesGUI.add(posMaterial.uniforms.maxLifetime,"value", 0.1, 20, 0.01).name("particle life time").onChange((v) =>{
+        
+    })
+}
+
+
+
 
 
 /**

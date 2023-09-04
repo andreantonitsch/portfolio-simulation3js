@@ -88,9 +88,10 @@ uint v2LocalID = triStartIndex + umod(vLocalID + 2u, 3u);
 uint v1Label = vertexLabels[v1LocalID];
 uint v2Label = vertexLabels[v2LocalID];
 
-float scale = (pos.a / maxLifetime ); //[0;1)
+float t = (pos.a / maxLifetime );
+float scale = t; //[0;1)
 scale = 1.0 -  (abs(scale - 0.5) * 2.0);
-//scale = smoothstep(0.0, 1.0, scale);
+//scale = mix(smoothstep(0.0, 0.3, t), 1.0 - smoothstep(0.7, 0.8, t) , step( 0.3, t));
 scale = exponentialIn(scale);
 
 vec3 v0 = computeVertexOffset(vertexLabel, direction, scale);

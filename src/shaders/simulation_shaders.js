@@ -37,7 +37,8 @@ void main() {
     if(lifetime < 0.0){
         // gl_FragColor =  vec4(normalize(random3(coord * uTime)) - vec3(0.5, 0.5, 0.5), maxLifetime * 0.75 * random(coord * uTime) + maxLifetime * 0.25);
         vec3 new_position = (normalize(random3(coord * uTime)) - vec3(0.5, 0.5, 0.5)) * 0.2;
-        gl_FragColor =  vec4( new_position + mousePosition, maxLifetime * 0.75 * random(coord * uTime) + maxLifetime * 0.25);
+        // gl_FragColor =  vec4( new_position + mousePosition, maxLifetime * 0.75 * random(coord * uTime) + maxLifetime * 0.25);
+        gl_FragColor =  vec4( new_position + mousePosition, maxLifetime - (random(coord) * 0.3 * maxLifetime));
     } else {
         vec3 speed = texture2D(speedMap, coord).xyz / 50.0;
 
