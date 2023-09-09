@@ -9,10 +9,14 @@
     height: 100%;
     margin: 0;
     padding: 0;
+    background: rgba(209, 136, 87, 1);
+    /* background-color: transparent !important; */
   }
   
   body {
-    background: rgba(243, 224, 80, 1);
+    background: rgba(209, 136, 87, 1);
+    /* background: rgba(243, 224, 80, 1.0); */
+
   }
   
 .webgl{
